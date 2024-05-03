@@ -15,6 +15,7 @@ class ParsingState(Enum):
 def init_measure_result_data():
     measure_result_data ={
         'Timestamp' : None,
+        'Measurement_ID' : None,
         'Lane' : None,
         'Task' : None,
         'Position' : None,
@@ -25,11 +26,13 @@ def init_measure_result_data():
         'Cont_Height' : None,
         'Lane_Status' : None,
         'Measurement_Status' : None,
+        'Assumed_trailer' : None,
         'Point_Center_X' : None,
         'Point_Center_Y' : None,
         'Point_Center_Z' : None,
         'Skew' : None,
         'Tilt' : None,
+        'Nr_of_detected_TL' : None,
         'SpTrMsg_length' : None,
         'SpTrMsg_position_X' : None,
         'SpTrMsg_position_Y' : None,
@@ -71,6 +74,20 @@ def parse_log_file(log_file):
                 state = ParsingState.SEARCH_TLMS_MEASUREMENT_VALUES
 
         elif state == ParsingState.SEARCH_TLMS_MEASUREMENT_VALUES:
+
+            # Search for the TLMS measurement job
+            # Measurement_ID
+            pattern = re.compile(r'(\d{2}\.\d{2}\.\d{4} \d{2}:\d{2}:\d{2};\d+);\d+; ; ;S; - Measurement ID:\s*(.*?)$')
+            key_match = pattern.search(log_line)
+            if key_match:
+                timestamp = parse_timestamp(key_match.group(1))
+                if check_timestamp(parsed_data, timestamp):
+                    parsed_data[-1]['Measurement_ID'] = str(key_match.group(2)).strip()
+                else:
+                    data['Timestamp'] = timestamp
+                    data['Measurement_ID'] = str(key_match.group(2)).strip()
+                    parsed_data.append(data)
+                continue            
 
             # Search for the TLMS measurement job
             # Lane
@@ -116,7 +133,7 @@ def parse_log_file(log_file):
 
             # Search for the TLMS measurement job
             # Chassis length
-            pattern = re.compile(r'(\d{2}\.\d{2}\.\d{4} \d{2}:\d{2}:\d{2};\d+);\d+; ; ;S; - Len:\s*(\d*\s*-\s*[\w ]*)')
+            pattern = re.compile(r'(\d{2}\.\d{2}\.\d{4} \d{2}:\d{2}:\d{2};\d+);\d+; ; ;S; - Len:\s*(.*?)$')
             key_match = pattern.search(log_line)
             if key_match:
                 timestamp = parse_timestamp(key_match.group(1))
@@ -196,6 +213,20 @@ def parse_log_file(log_file):
                     parsed_data.append(data)
                 continue 
 
+            # Measurement result
+            # Assumed_trailer
+            pattern = re.compile(r'(\d{2}\.\d{2}\.\d{4} \d{2}:\d{2}:\d{2};\d+);\d+; ; ;S; - Assuming\s*([\w_]*)')
+            key_match = pattern.search(log_line)
+            if key_match:
+                timestamp = parse_timestamp(key_match.group(1))
+                if check_timestamp(parsed_data, timestamp):
+                    parsed_data[-1]['Assumed_trailer'] = str(key_match.group(2)).strip()
+                else:
+                    data['Timestamp'] = timestamp
+                    data['Assumed_trailer'] = str(key_match.group(2)).strip()
+                    parsed_data.append(data)
+                continue             
+
             # Search for the TLMS measurement Job
             # X, Y and Z
             pattern = re.compile(r'(\d{2}\.\d{2}\.\d{4} \d{2}:\d{2}:\d{2};\d+);\d+; ; ;S; - Point Center X\/Y\/Z:\s*(\d*) / (\d*) / (\d*)')
@@ -242,6 +273,19 @@ def parse_log_file(log_file):
                     parsed_data.append(data)
                 continue 
 
+            # Search for end of TLMS measurement
+            # Number of detected twistlocks
+            pattern = re.compile(r'(\d{2}\.\d{2}\.\d{4} \d{2}:\d{2}:\d{2};\d+);\d+; ; ;S; -- Number of detected twist locks \(TL\):\s*(\d*)')
+            key_match = pattern.search(log_line)
+            if key_match:
+                timestamp = parse_timestamp(key_match.group(1))
+                if check_timestamp(parsed_data, timestamp):
+                    parsed_data[-1]['Nr_of_detected_TL'] = int(key_match.group(2))
+                else:
+                    data['Timestamp'] = timestamp
+                    data['Nr_of_detected_TL'] = int(key_match.group(2))
+                    parsed_data.append(data)
+                continue
             # Search for end of TLMS measurement
             # Measurement finished OR Spreader Tracking Message received OR Spreader tracking results
             pattern = re.compile(r'(\d{2}\.\d{2}\.\d{4} \d{2}:\d{2}:\d{2};\d+);\d+; ; ;S; - Measurement finished| - Spreader Tracking Message received|Spreader tracking results:')
