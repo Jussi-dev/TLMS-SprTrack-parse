@@ -424,7 +424,7 @@ def handle_logs(log_files):
     for file in log_files:
         df_parsed_log_file = pd.DataFrame.from_dict(parse_log_file(file))
         log_file_name = os.path.splitext(os.path.basename(file))[0]
-        print(int(df_parsed_log_file.loc[0]['Lane']))
+        # print(int(df_parsed_log_file.loc[0]['Lane']))
                 
         # Fill missing values
         df_parsed_log_file = df_parsed_log_file.ffill(axis=0)
