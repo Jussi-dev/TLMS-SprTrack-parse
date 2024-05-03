@@ -423,10 +423,13 @@ def handle_logs(log_files):
     data_logs = []
     for file in log_files:
         df_parsed_log_file = pd.DataFrame.from_dict(parse_log_file(file))
+        log_file_name = os.path.splitext(os.path.basename(file))[0]
+        print(int(df_parsed_log_file.loc[0]['Lane']))
+                
         # Fill missing values
         df_parsed_log_file = df_parsed_log_file.ffill(axis=0)
         data_logs.append(df_parsed_log_file) # Parsed data values
-    df_parsed_log_file.to_csv("Parsed.csv")
+        df_parsed_log_file.to_csv("Output/" + log_file_name + "_parsed.csv")
     
 def main():
     # Select log files
