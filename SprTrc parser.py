@@ -70,7 +70,7 @@ def parse_log_file(log_file):
             if key_match:
                 timestamp = key_match.group(1)
                 timestamp = parse_timestamp(timestamp)
-                print(f"Timestamp: {timestamp}, ASCCS Start Measurement Message received")
+                # print(f"Timestamp: {timestamp}, ASCCS Start Measurement Message received")
                 state = ParsingState.SEARCH_TLMS_MEASUREMENT_VALUES
 
         elif state == ParsingState.SEARCH_TLMS_MEASUREMENT_VALUES:
@@ -408,6 +408,8 @@ def parse_log_file(log_file):
                     data['SpTrRes_Event_desc'] = str(key_match.group(2))
                     parsed_data.append(data)
                 continue
+    if len(parsed_data) < 1:
+        parsed_data.append(data)
 
     return parsed_data
 
@@ -423,13 +425,30 @@ def handle_logs(log_files):
     data_logs = []
     for file in log_files:
         df_parsed_log_file = pd.DataFrame.from_dict(parse_log_file(file))
-        log_file_name = os.path.splitext(os.path.basename(file))[0]
-        # print(int(df_parsed_log_file.loc[0]['Lane']))
+        if not pd.isna(df_parsed_log_file.at[0, 'Lane']):
+            Lane = str(int(df_parsed_log_file.at[0, 'Lane']))
+        else:
+            Lane = "xx"
+
+        if not pd.isna(df_parsed_log_file.at[0, 'Position']):
+            Pos = str(df_parsed_log_file.at[0, 'Position']).split('-')
+            Pos = Pos[1].strip()
+        else:
+            Pos = "yy"
+            
+        log_file_name = "Lane_" + Lane + "_" + "Pos_" + Pos + "_" + os.path.splitext(os.path.basename(file))[0]
+        
+        if df_parsed_log_file.empty:
+            print(log_file_name + " is empty")
+        else:
+            if not (df_parsed_log_file['SpTrMsg_position_Z'] < 5000.0).any():
+                log_file_name = log_file_name + "_Not_seated"
+                print(log_file_name)
                 
         # Fill missing values
         df_parsed_log_file = df_parsed_log_file.ffill(axis=0)
         data_logs.append(df_parsed_log_file) # Parsed data values
-        df_parsed_log_file.to_csv("Output/" + log_file_name + "_parsed.csv")
+        df_parsed_log_file.to_csv("Output/" + log_file_name + ".csv")
     
 def main():
     # Select log files
