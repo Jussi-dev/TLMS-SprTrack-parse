@@ -408,6 +408,7 @@ def parse_log_file(log_file):
                     data['SpTrRes_Event_desc'] = str(key_match.group(2))
                     parsed_data.append(data)
                 continue
+            
     if len(parsed_data) < 1:
         parsed_data.append(data)
 
