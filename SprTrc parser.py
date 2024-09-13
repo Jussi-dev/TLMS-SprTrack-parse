@@ -286,6 +286,7 @@ def parse_log_file(log_file):
                     data['Nr_of_detected_TL'] = int(key_match.group(2))
                     parsed_data.append(data)
                 continue
+            
             # Search for end of TLMS measurement
             # Measurement finished OR Spreader Tracking Message received OR Spreader tracking results
             pattern = re.compile(r'(\d{2}\.\d{2}\.\d{4} \d{2}:\d{2}:\d{2};\d+);\d+; ; ;S; - Measurement finished| - Spreader Tracking Message received|Spreader tracking results:')
@@ -408,7 +409,7 @@ def parse_log_file(log_file):
                     data['SpTrRes_Event_desc'] = str(key_match.group(2))
                     parsed_data.append(data)
                 continue
-            
+
     if len(parsed_data) < 1:
         parsed_data.append(data)
 
@@ -436,8 +437,14 @@ def handle_logs(log_files):
             Pos = Pos[1].strip()
         else:
             Pos = "yy"
+
+        if not pd.isna(df_parsed_log_file.at[0, 'Task']):
+            Task = str(df_parsed_log_file.at[0, 'Task']).split('-')
+            Task = Task[1].strip()
+        else:
+            Task = "na"
             
-        log_file_name = "Lane_" + Lane + "_" + "Pos_" + Pos + "_" + os.path.splitext(os.path.basename(file))[0]
+        log_file_name = "Lane_" + Lane + "_" + "Pos_" + Pos + "_" + Task + "_" + os.path.splitext(os.path.basename(file))[0]
         
         if df_parsed_log_file.empty:
             print(log_file_name + " is empty")
