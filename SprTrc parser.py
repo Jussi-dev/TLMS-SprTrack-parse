@@ -5,6 +5,9 @@ from tkinter import filedialog
 from datetime import datetime, timedelta
 from enum import Enum
 import pandas as pd
+import numpy as np
+from scipy.signal import detrend
+from scipy.optimize import curve_fit
 
 class ParsingState(Enum):
     INIT            = 0
@@ -457,6 +460,71 @@ def handle_logs(log_files):
         df_parsed_log_file = df_parsed_log_file.ffill(axis=0)
         data_logs.append(df_parsed_log_file) # Parsed data values
         df_parsed_log_file.to_csv("Output/" + log_file_name + ".csv")
+
+        analyze_spreader_movement(df_parsed_log_file)
+
+def analyze_spreader_movement(spreader_tracking_data):
+    # Select relevant columns and create a copy to avoid the warning
+    df_SpTrRes_calc_Y = spreader_tracking_data[['Timestamp', 'SpTrRes_calc_Y']].copy()
+
+    # Set up gate for signal
+    z_limit = 5300.0
+    z_upper_window = 50.0
+    z_lower_window = -50.0
+    z_upper_limit = z_limit + z_upper_window
+    z_lower_limit = z_limit + z_lower_window
+
+    # Filter the data using the gating window and create a copy to avoid the warning
+    df_SpTrRes_calc_Y = spreader_tracking_data[(spreader_tracking_data['SpTrMsg_position_Z'] >= z_lower_limit) & 
+                                               (spreader_tracking_data['SpTrMsg_position_Z'] <= z_upper_limit)].copy()
+
+    # If the filtered data is empty, return an error message and stop further processing
+    if df_SpTrRes_calc_Y.empty:
+        print("Filtered data is empty. Please check your filter conditions.")
+        return
+
+    # Convert 'Timestamp' to datetime format (no warning now)
+    df_SpTrRes_calc_Y['Timestamp'] = pd.to_datetime(df_SpTrRes_calc_Y['Timestamp'])
+
+    # Ensure the data is sorted and set the timestamp as index
+    df_SpTrRes_calc_Y = df_SpTrRes_calc_Y.sort_values('Timestamp')
+    df_SpTrRes_calc_Y.set_index('Timestamp', inplace=True)
+
+    # Detrend the y_deflection data
+    df_SpTrRes_calc_Y['detrended'] = detrend(df_SpTrRes_calc_Y['SpTrRes_calc_Y'])
+
+    # Calculate sampling interval (T) and number of samples (N)
+    T = (df_SpTrRes_calc_Y.index[1] - df_SpTrRes_calc_Y.index[0]).total_seconds()
+    N = len(df_SpTrRes_calc_Y)
+
+    # Apply FFT to detrended data
+    fft_vals = np.fft.fft(df_SpTrRes_calc_Y['detrended'])
+    fft_freqs = np.fft.fftfreq(N, T)
+
+    # Find the dominant frequency
+    idx = np.argmax(np.abs(fft_vals))
+    dominant_freq = np.abs(fft_freqs[idx])
+    print(f"Dominant Frequency: {dominant_freq} Hz")
+
+    # Estimate amplitude (peak-to-peak method)
+    amplitude = (df_SpTrRes_calc_Y['detrended'].max() - df_SpTrRes_calc_Y['detrended'].min()) / 2
+    print(f"Estimated Amplitude: {amplitude}")
+
+    # Optional: Fit a sine wave to refine the amplitude estimate
+    def sine_wave(t, A, omega, phase, offset):
+        return A * np.sin(omega * t + phase) + offset
+
+    # Time in seconds from the first timestamp
+    time_seconds = (df_SpTrRes_calc_Y.index - df_SpTrRes_calc_Y.index[0]).total_seconds()
+    omega_guess = 2 * np.pi * dominant_freq
+
+    # Fit the sine wave to the detrended data
+    popt, _ = curve_fit(sine_wave, time_seconds, df_SpTrRes_calc_Y['detrended'], 
+                        p0=[amplitude, omega_guess, 0, 0])
+
+    amplitude_fit = popt[0]
+    print(f"Fitted Amplitude: {amplitude_fit}")
+
     
 def main():
     # Select log files
