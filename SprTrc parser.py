@@ -8,6 +8,8 @@ import pandas as pd
 import numpy as np
 from scipy.signal import detrend
 from scipy.optimize import curve_fit
+import matplotlib.pyplot as plt
+
 
 class ParsingState(Enum):
     INIT            = 0
@@ -468,22 +470,24 @@ def analyze_spreader_movement(spreader_tracking_data):
     df_SpTrRes_calc_Y = spreader_tracking_data[['Timestamp', 'SpTrRes_calc_Y']].copy()
 
     # Set up gate for signal
-    z_limit = 5300.0
-    z_upper_window = 50.0
-    z_lower_window = -50.0
+    z_limit = 5000.0
+    z_upper_window = 70.0
+    z_lower_window = -70.0
     z_upper_limit = z_limit + z_upper_window
     z_lower_limit = z_limit + z_lower_window
 
     # Filter the data using the gating window and create a copy to avoid the warning
-    df_SpTrRes_calc_Y = spreader_tracking_data[(spreader_tracking_data['SpTrMsg_position_Z'] >= z_lower_limit) & 
-                                               (spreader_tracking_data['SpTrMsg_position_Z'] <= z_upper_limit)].copy()
+    df_SpTrRes_calc_Y = spreader_tracking_data[
+        (spreader_tracking_data['SpTrMsg_position_Z'] >= z_lower_limit) & 
+        (spreader_tracking_data['SpTrMsg_position_Z'] <= z_upper_limit)
+    ].copy()
 
     # If the filtered data is empty, return an error message and stop further processing
     if df_SpTrRes_calc_Y.empty:
         print("Filtered data is empty. Please check your filter conditions.")
         return
 
-    # Convert 'Timestamp' to datetime format (no warning now)
+    # Convert 'Timestamp' to datetime format
     df_SpTrRes_calc_Y['Timestamp'] = pd.to_datetime(df_SpTrRes_calc_Y['Timestamp'])
 
     # Ensure the data is sorted and set the timestamp as index
@@ -510,21 +514,30 @@ def analyze_spreader_movement(spreader_tracking_data):
     amplitude = (df_SpTrRes_calc_Y['detrended'].max() - df_SpTrRes_calc_Y['detrended'].min()) / 2
     print(f"Estimated Amplitude: {amplitude}")
 
-    # Optional: Fit a sine wave to refine the amplitude estimate
-    def sine_wave(t, A, omega, phase, offset):
-        return A * np.sin(omega * t + phase) + offset
+    # Create two subplots: one for original data and one for detrended data
+    plt.figure(figsize=(12, 10))  # Adjust the figure size as needed
 
-    # Time in seconds from the first timestamp
-    time_seconds = (df_SpTrRes_calc_Y.index - df_SpTrRes_calc_Y.index[0]).total_seconds()
-    omega_guess = 2 * np.pi * dominant_freq
+    # First subplot: Original Data
+    plt.subplot(2, 1, 1)  # (rows, columns, plot_index)
+    plt.plot(df_SpTrRes_calc_Y.index, df_SpTrRes_calc_Y['SpTrRes_calc_Y'], color='blue')
+    plt.title('Original Spreader Movement Data')
+    plt.xlabel('Timestamp')
+    plt.ylabel('SpTrRes_calc_Y (Deflection)')
+    plt.xticks(rotation=45)  # Rotate x-axis labels for better readability
 
-    # Fit the sine wave to the detrended data
-    popt, _ = curve_fit(sine_wave, time_seconds, df_SpTrRes_calc_Y['detrended'], 
-                        p0=[amplitude, omega_guess, 0, 0])
+    # Second subplot: Detrended Data
+    plt.subplot(2, 1, 2)
+    plt.plot(df_SpTrRes_calc_Y.index, df_SpTrRes_calc_Y['detrended'], color='red', linestyle='--')
+    plt.title('Detrended Spreader Movement Data')
+    plt.xlabel('Timestamp')
+    plt.ylabel('Detrended SpTrRes_calc_Y (Deflection)')
+    plt.xticks(rotation=45)  # Rotate x-axis labels for better readability
 
-    amplitude_fit = popt[0]
-    print(f"Fitted Amplitude: {amplitude_fit}")
+    # Adjust layout and show the plots
+    plt.tight_layout()
+    plt.show()
 
+    # You can continue with other processing steps (FFT, curve fitting, etc.)
     
 def main():
     # Select log files
