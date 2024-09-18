@@ -467,42 +467,61 @@ def handle_logs(log_files):
 
 def analyze_spreader_movement(spreader_tracking_data):
     # Select relevant columns and create a copy to avoid the warning
-    df_SpTrRes_calc_Y = spreader_tracking_data[['Timestamp', 'SpTrRes_calc_Y']].copy()
+    df_SpTr_data = spreader_tracking_data[['Timestamp', 'Task', 'Measurement_Status', 'Cont_Height', 'Point_Center_Z', 'SpTrRes_calc_Y']].copy()
 
+    # Find Point_Center_Z
+    # First data row with TLMS result
+    df_first_TLMS_result = df_SpTr_data[df_SpTr_data.Measurement_Status == 'Done']
+    if df_first_TLMS_result.empty:
+        offset = 0.0
+    else:
+        df_first_TLMS_result = df_first_TLMS_result.iloc[0]
+        print(df_first_TLMS_result['Point_Center_Z'])
+        container_height = df_first_TLMS_result['Cont_Height']
+        if df_SpTr_data.iloc[0].Task == '1 -  Pick':
+            offset = 300.0
+        elif df_SpTr_data.iloc[0].Task == '2 -  Place':
+            offset = container_height + 360.0
+        else:
+            offset = 0.0
+    
     # Set up gate for signal
-    z_limit = 5000.0
-    z_upper_window = 70.0
-    z_lower_window = -70.0
+    z_limit = df_first_TLMS_result['Point_Center_Z'] + offset
+    z_upper_window = 10.0
+    z_lower_window = -350.0
     z_upper_limit = z_limit + z_upper_window
     z_lower_limit = z_limit + z_lower_window
 
+    print(f"Upper limit: {z_upper_limit} mm")
+    print(f"Lower limit: {z_lower_limit} mm")
+
     # Filter the data using the gating window and create a copy to avoid the warning
-    df_SpTrRes_calc_Y = spreader_tracking_data[
+    df_SpTr_data = spreader_tracking_data[
         (spreader_tracking_data['SpTrMsg_position_Z'] >= z_lower_limit) & 
         (spreader_tracking_data['SpTrMsg_position_Z'] <= z_upper_limit)
     ].copy()
 
     # If the filtered data is empty, return an error message and stop further processing
-    if df_SpTrRes_calc_Y.empty:
+    if df_SpTr_data.empty:
         print("Filtered data is empty. Please check your filter conditions.")
         return
 
     # Convert 'Timestamp' to datetime format
-    df_SpTrRes_calc_Y['Timestamp'] = pd.to_datetime(df_SpTrRes_calc_Y['Timestamp'])
+    df_SpTr_data['Timestamp'] = pd.to_datetime(df_SpTr_data['Timestamp'])
 
     # Ensure the data is sorted and set the timestamp as index
-    df_SpTrRes_calc_Y = df_SpTrRes_calc_Y.sort_values('Timestamp')
-    df_SpTrRes_calc_Y.set_index('Timestamp', inplace=True)
+    df_SpTr_data = df_SpTr_data.sort_values('Timestamp')
+    df_SpTr_data.set_index('Timestamp', inplace=True)
 
     # Detrend the y_deflection data
-    df_SpTrRes_calc_Y['detrended'] = detrend(df_SpTrRes_calc_Y['SpTrRes_calc_Y'])
+    df_SpTr_data['detrended'] = detrend(df_SpTr_data['SpTrRes_calc_Y'])
 
     # Calculate sampling interval (T) and number of samples (N)
-    T = (df_SpTrRes_calc_Y.index[1] - df_SpTrRes_calc_Y.index[0]).total_seconds()
-    N = len(df_SpTrRes_calc_Y)
+    T = (df_SpTr_data.index[1] - df_SpTr_data.index[0]).total_seconds()
+    N = len(df_SpTr_data)
 
     # Apply FFT to detrended data
-    fft_vals = np.fft.fft(df_SpTrRes_calc_Y['detrended'])
+    fft_vals = np.fft.fft(df_SpTr_data['detrended'])
     fft_freqs = np.fft.fftfreq(N, T)
 
     # Find the dominant frequency
@@ -511,7 +530,7 @@ def analyze_spreader_movement(spreader_tracking_data):
     print(f"Dominant Frequency: {dominant_freq} Hz")
 
     # Estimate amplitude (peak-to-peak method)
-    amplitude = (df_SpTrRes_calc_Y['detrended'].max() - df_SpTrRes_calc_Y['detrended'].min()) / 2
+    amplitude = (df_SpTr_data['detrended'].max() - df_SpTr_data['detrended'].min()) / 2
     print(f"Estimated Amplitude: {amplitude}")
 
     # Create two subplots: one for original data and one for detrended data
@@ -519,7 +538,7 @@ def analyze_spreader_movement(spreader_tracking_data):
 
     # First subplot: Original Data
     plt.subplot(2, 1, 1)  # (rows, columns, plot_index)
-    plt.plot(df_SpTrRes_calc_Y.index, df_SpTrRes_calc_Y['SpTrRes_calc_Y'], color='blue')
+    plt.plot(df_SpTr_data.index, df_SpTr_data['SpTrRes_calc_Y'], color='blue')
     plt.title('Original Spreader Movement Data')
     plt.xlabel('Timestamp')
     plt.ylabel('SpTrRes_calc_Y (Deflection)')
@@ -527,7 +546,7 @@ def analyze_spreader_movement(spreader_tracking_data):
 
     # Second subplot: Detrended Data
     plt.subplot(2, 1, 2)
-    plt.plot(df_SpTrRes_calc_Y.index, df_SpTrRes_calc_Y['detrended'], color='red', linestyle='--')
+    plt.plot(df_SpTr_data.index, df_SpTr_data['detrended'], color='red', linestyle='--')
     plt.title('Detrended Spreader Movement Data')
     plt.xlabel('Timestamp')
     plt.ylabel('Detrended SpTrRes_calc_Y (Deflection)')
