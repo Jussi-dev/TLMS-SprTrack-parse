@@ -463,9 +463,9 @@ def handle_logs(log_files):
         data_logs.append(df_parsed_log_file) # Parsed data values
         df_parsed_log_file.to_csv("Output/" + log_file_name + ".csv")
 
-        analyze_spreader_movement(df_parsed_log_file)
+        analyze_spreader_movement(df_parsed_log_file, log_file_name)
 
-def analyze_spreader_movement(spreader_tracking_data):
+def analyze_spreader_movement(spreader_tracking_data, log_file_name):
     # Select relevant columns and create a copy to avoid the warning
     df_SpTr_data = spreader_tracking_data[['Timestamp', 'Task', 'Measurement_Status', 'Cont_Height', 'Point_Center_Z', 'SpTrRes_calc_Y']].copy()
 
@@ -473,7 +473,7 @@ def analyze_spreader_movement(spreader_tracking_data):
     # First data row with TLMS result
     df_first_TLMS_result = df_SpTr_data[df_SpTr_data.Measurement_Status == 'Done']
     if df_first_TLMS_result.empty:
-        offset = 0.0
+        return
     else:
         df_first_TLMS_result = df_first_TLMS_result.iloc[0]
         print(df_first_TLMS_result['Point_Center_Z'])
@@ -487,7 +487,7 @@ def analyze_spreader_movement(spreader_tracking_data):
     
     # Set up gate for signal
     z_limit = df_first_TLMS_result['Point_Center_Z'] + offset
-    z_upper_window = 10.0
+    z_upper_window = 20.0
     z_lower_window = -350.0
     z_upper_limit = z_limit + z_upper_window
     z_lower_limit = z_limit + z_lower_window
@@ -534,7 +534,7 @@ def analyze_spreader_movement(spreader_tracking_data):
     print(f"Estimated Amplitude: {amplitude}")
 
     # Create two subplots: one for original data and one for detrended data
-    plt.figure(figsize=(12, 10))  # Adjust the figure size as needed
+    plt.figure(figsize=(12, 10)).suptitle(log_file_name)  # Adjust the figure size as needed
 
     # First subplot: Original Data
     plt.subplot(2, 1, 1)  # (rows, columns, plot_index)
