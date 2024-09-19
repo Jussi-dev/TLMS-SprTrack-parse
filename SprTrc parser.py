@@ -9,7 +9,7 @@ import numpy as np
 from scipy.signal import detrend
 from scipy.optimize import curve_fit
 import matplotlib.pyplot as plt
-
+from matplotlib.ticker import ScalarFormatter
 
 class ParsingState(Enum):
     INIT            = 0
@@ -479,7 +479,7 @@ def analyze_spreader_movement(spreader_tracking_data, log_file_name):
         print(df_first_TLMS_result['Point_Center_Z'])
         container_height = df_first_TLMS_result['Cont_Height']
         if df_SpTr_data.iloc[0].Task == '1 -  Pick':
-            offset = 300.0
+            offset = 400.0
         elif df_SpTr_data.iloc[0].Task == '2 -  Place':
             offset = container_height + 360.0
         else:
@@ -539,6 +539,12 @@ def analyze_spreader_movement(spreader_tracking_data, log_file_name):
     # First subplot: Original Data
     plt.subplot(2, 1, 1)  # (rows, columns, plot_index)
     plt.plot(df_SpTr_data.index, df_SpTr_data['SpTrRes_calc_Y'], color='blue')
+    ax_1 = plt.gca()
+
+    # Force plain formatting without scientific notation
+    ax_1.yaxis.set_major_formatter(ScalarFormatter(useOffset=False))
+    ax_1.ticklabel_format(style='plain', axis='y')
+    
     plt.title('Original Spreader Movement Data')
     plt.xlabel('Timestamp')
     plt.ylabel('SpTrRes_calc_Y (Deflection)')
@@ -557,7 +563,6 @@ def analyze_spreader_movement(spreader_tracking_data, log_file_name):
     plt.show()
 
     # You can continue with other processing steps (FFT, curve fitting, etc.)
-    
 def main():
     # Select log files
     log_names = filedialog.askopenfilenames()
