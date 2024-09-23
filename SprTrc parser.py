@@ -467,7 +467,7 @@ def handle_logs(log_files):
 
 def analyze_spreader_movement(spreader_tracking_data, log_file_name):
     # Select relevant columns and create a copy to avoid the warning
-    df_SpTr_data = spreader_tracking_data[['Timestamp', 'Task', 'Measurement_Status', 'Cont_Height', 'Point_Center_Z', 'SpTrRes_calc_Y']].copy()
+    df_SpTr_data = spreader_tracking_data[['Timestamp', 'Task', 'Measurement_Status', 'Cont_Height', 'Point_Center_Z', 'SpTrRes_calc_Y', 'SpTrRes_calc_Skew']].copy()
 
     # Find Point_Center_Z
     # First data row with TLMS result
@@ -545,17 +545,17 @@ def analyze_spreader_movement(spreader_tracking_data, log_file_name):
     ax_1.yaxis.set_major_formatter(ScalarFormatter(useOffset=False))
     ax_1.ticklabel_format(style='plain', axis='y')
     
-    plt.title('Original Spreader Movement Data')
+    plt.title('Spreader Movement Y')
     plt.xlabel('Timestamp')
     plt.ylabel('SpTrRes_calc_Y (Deflection)')
     plt.xticks(rotation=45)  # Rotate x-axis labels for better readability
 
     # Second subplot: Detrended Data
     plt.subplot(2, 1, 2)
-    plt.plot(df_SpTr_data.index, df_SpTr_data['detrended'], color='red', linestyle='--')
-    plt.title('Detrended Spreader Movement Data')
+    plt.plot(df_SpTr_data.index, df_SpTr_data['SpTrRes_calc_Skew'], color='red', linestyle='--')
+    plt.title('Spreader Movement Skew')
     plt.xlabel('Timestamp')
-    plt.ylabel('Detrended SpTrRes_calc_Y (Deflection)')
+    plt.ylabel('SpTrRes_calc_Skew')
     plt.xticks(rotation=45)  # Rotate x-axis labels for better readability
 
     # Adjust layout and show the plots
