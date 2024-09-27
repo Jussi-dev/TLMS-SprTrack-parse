@@ -467,7 +467,7 @@ def handle_logs(log_files):
 
 def analyze_spreader_movement(spreader_tracking_data, log_file_name):
     # Select relevant columns and create a copy to avoid the warning
-    df_SpTr_data = spreader_tracking_data[['Timestamp', 'Task', 'Measurement_Status', 'Cont_Height', 'Point_Center_Z', 'SpTrRes_calc_Y', 'SpTrRes_calc_Skew']].copy()
+    df_SpTr_data = spreader_tracking_data[['Timestamp', 'Task', 'Measurement_Status', 'Cont_Height', 'Point_Center_Y', 'Point_Center_Z', 'Skew', 'SpTrRes_calc_Y', 'SpTrRes_calc_Skew']].copy()
 
     # Find Point_Center_Z
     # First data row with TLMS result
@@ -539,6 +539,9 @@ def analyze_spreader_movement(spreader_tracking_data, log_file_name):
     # First subplot: Original Data
     plt.subplot(2, 1, 1)  # (rows, columns, plot_index)
     plt.plot(df_SpTr_data.index, df_SpTr_data['SpTrRes_calc_Y'], color='blue')
+
+    # Plot trailer Y
+    plt.plot(df_SpTr_data.index, df_SpTr_data['Point_Center_Y'], color='red', linestyle='--')
     ax_1 = plt.gca()
 
     # Force plain formatting without scientific notation
@@ -550,9 +553,13 @@ def analyze_spreader_movement(spreader_tracking_data, log_file_name):
     plt.ylabel('SpTrRes_calc_Y (Deflection)')
     plt.xticks(rotation=45)  # Rotate x-axis labels for better readability
 
-    # Second subplot: Detrended Data
+    # Second subplot: Skew
     plt.subplot(2, 1, 2)
-    plt.plot(df_SpTr_data.index, df_SpTr_data['SpTrRes_calc_Skew'], color='red', linestyle='--')
+    plt.plot(df_SpTr_data.index, df_SpTr_data['SpTrRes_calc_Skew'], color='blue')
+
+    # Plot trailer Skew
+    plt.plot(df_SpTr_data.index, df_SpTr_data['Skew'], color='red', linestyle='--')
+
     plt.title('Spreader Movement Skew')
     plt.xlabel('Timestamp')
     plt.ylabel('SpTrRes_calc_Skew')
