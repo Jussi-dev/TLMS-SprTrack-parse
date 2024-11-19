@@ -431,32 +431,11 @@ def check_timestamp(parsed_data, timestamp):
 def handle_logs(log_files):
     data_logs = []
     for file in log_files:
+        # Parse log file
         df_parsed_log_file = pd.DataFrame.from_dict(parse_log_file(file))
-        if not pd.isna(df_parsed_log_file.at[0, 'Lane']):
-            Lane = str(int(df_parsed_log_file.at[0, 'Lane']))
-        else:
-            Lane = "xx"
 
-        if not pd.isna(df_parsed_log_file.at[0, 'Position']):
-            Pos = str(df_parsed_log_file.at[0, 'Position']).split('-')
-            Pos = Pos[1].strip()
-        else:
-            Pos = "yy"
-
-        if not pd.isna(df_parsed_log_file.at[0, 'Task']):
-            Task = str(df_parsed_log_file.at[0, 'Task']).split('-')
-            Task = Task[1].strip()
-        else:
-            Task = "na"
-            
-        log_file_name = "Lane_" + Lane + "_" + "Pos_" + Pos + "_" + Task + "_" + os.path.splitext(os.path.basename(file))[0]
-        
-        if df_parsed_log_file.empty:
-            print(log_file_name + " is empty")
-        else:
-            if not (df_parsed_log_file['SpTrMsg_position_Z'] < 5000.0).any():
-                log_file_name = log_file_name + "_Not_seated"
-                print(log_file_name)
+        # Generate log file name
+        log_file_name = generate_log_filename(file, df_parsed_log_file)
                 
         # Fill missing values
         df_parsed_log_file = df_parsed_log_file.ffill(axis=0)
@@ -464,6 +443,34 @@ def handle_logs(log_files):
         df_parsed_log_file.to_csv("Output/" + log_file_name + ".csv")
 
         analyze_spreader_movement(df_parsed_log_file, log_file_name)
+
+def generate_log_filename(file, df_parsed_log_file):
+    if not pd.isna(df_parsed_log_file.at[0, 'Lane']):
+        Lane = str(int(df_parsed_log_file.at[0, 'Lane']))
+    else:
+        Lane = "xx"
+
+    if not pd.isna(df_parsed_log_file.at[0, 'Position']):
+        Pos = str(df_parsed_log_file.at[0, 'Position']).split('-')
+        Pos = Pos[1].strip()
+    else:
+        Pos = "yy"
+
+    if not pd.isna(df_parsed_log_file.at[0, 'Task']):
+        Task = str(df_parsed_log_file.at[0, 'Task']).split('-')
+        Task = Task[1].strip()
+    else:
+        Task = "na"
+            
+    log_file_name = "Lane_" + Lane + "_" + "Pos_" + Pos + "_" + Task + "_" + os.path.splitext(os.path.basename(file))[0]
+        
+    if df_parsed_log_file.empty:
+        print(log_file_name + " is empty")
+    else:
+        if not (df_parsed_log_file['SpTrMsg_position_Z'] < 5000.0).any():
+            log_file_name = log_file_name + "_Not_seated"
+            print(log_file_name)
+    return log_file_name
 
 def analyze_spreader_movement(spreader_tracking_data, log_file_name):
     # Select relevant columns and create a copy to avoid the warning
