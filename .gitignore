@@ -1,4 +1,4 @@
 .vscode/launch.json
 Parsed.csv
 /Output
-Analyse spreader tracking data.py
+__pycache__/SprTrc_parser.cpython-311.pyc
