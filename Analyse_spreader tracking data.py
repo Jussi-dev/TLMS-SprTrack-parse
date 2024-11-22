@@ -47,6 +47,9 @@ def main():
         # =================== Data analysis ===================
         # Find the first valid row of 'SpTrMsg_Skew'
         extract_first_valid_spreader_data(df_current_analysis, df_log_data)
+
+        # Detremine the settling time before final landing
+        calculate_settling_time(df_current_analysis, df_log_data)
         # ====================================================
 
         # =================== Data aggregation ===================
@@ -68,6 +71,64 @@ def main():
         plot_initial_ath_skew(df_processed_logs)
     # =============================================
 
+    return None
+
+def calculate_settling_time(df_current_analysis, df_log_data):
+    # Settling time is defined as the time spreader is at the settling height before final landing
+
+    # Find first (if any) row with valid target measurement Z height
+    df_measurement_done = df_log_data[df_log_data.Measurement_Status == 'Done'] # Find rows with measurement status 'Done'
+    if not df_measurement_done.empty:
+        df_measurement_done = df_measurement_done.iloc[0] # Select the first row
+        target_z_height = df_measurement_done['Point_Center_Z'] # Extract the target Z height
+    else:
+        target_z_height = None
+
+    # Define the settling height based on the task
+    if target_z_height is not None:
+        if df_current_analysis.iloc[0]['Task'] == '1 -  Pick':
+            # Estimate the settling time before final landing
+            settling_height = target_z_height + 370 # Z target height + 400 mm offset
+        elif df_current_analysis.iloc[0]['Task'] == '2 -  Place':
+            # Estimate the settling time before final landing
+            settling_height = target_z_height + df_current_analysis.iloc[0]['Cont_Height'] + 360 # Z target height + container height + 360 mm offset
+        else:
+            settling_height = None
+    else:
+        settling_height = None
+
+    # Set settling heigh upper and lower limits
+    if settling_height is not None:
+        settling_height_upper_limit = settling_height + 50
+        settling_height_lower_limit = settling_height - 50
+    else:
+        settling_height_upper_limit = None
+        settling_height_lower_limit = None
+
+    # Find the first row where the spreader is at the settling height before final landing
+    if settling_height_upper_limit is not None and settling_height_lower_limit is not None:
+        df_settling_height_range = df_log_data[(df_log_data['SpTrMsg_position_Z'] >= settling_height_lower_limit) & (df_log_data['SpTrMsg_position_Z'] <= settling_height_upper_limit)]
+        if not df_settling_height_range.empty:
+            settling_time_start = pd.to_datetime(df_settling_height_range.iloc[0]['Timestamp'], errors='coerce')
+            settling_time_end = pd.to_datetime(df_settling_height_range.iloc[-1]['Timestamp'], errors='coerce')
+            settling_time = settling_time_end - settling_time_start
+
+            # Define a validation spreader height range
+            # Spreader z height < 6500 mm
+            df_spreader_validation_height_range = df_log_data[df_log_data['SpTrMsg_position_Z'] < 5800]
+
+            # Plot the spreader Z position over time at the settling height range
+            df_spreader_validation_height_range.plot(x='Timestamp', y='SpTrMsg_position_Z', figsize=(12, 6), label='Validation Height Range')
+            df_settling_height_range.plot(x='Timestamp', y='SpTrMsg_position_Z', label='Settling Height Range', ax=plt.gca())
+            plt.title(f"Task: {df_current_analysis.iloc[0]['Task']}")
+            plt.xticks(rotation=45, ha='right')
+            plt.tight_layout()
+            plt.show()
+        else:
+            settling_time = None
+    else:
+        settling_time = None
+    df_current_analysis.loc[0, 'SpTr_settling_time'] = settling_time
     return None
 
 def extract_job_info(df_current_analysis, df_log_data):
@@ -124,7 +185,8 @@ def initialize_analysis_data_structure():
         'Cont_Height',
         'SpTrRes_Skew_1st_valid_timestamp',
         'SpTrRes_Skew_1st_valid',
-        'SpTrMsg_Skew_1st_valid'
+        'SpTrMsg_Skew_1st_valid',
+        'SpTr_settling_time'
     ])
     return df
 
