@@ -75,6 +75,11 @@ def parse_log_file(log_file):
             if key_match:
                 timestamp = key_match.group(1)
                 timestamp = parse_timestamp(timestamp)
+                if check_timestamp(parsed_data, timestamp): # Check if there is already data with found timestamp
+                    parsed_data[-1]['Timestamp'] = timestamp # Add timestamp to the last data row if there is already data with this timestamp
+                else: # There is no data with this timestamp
+                    data['Timestamp'] = timestamp
+                    parsed_data.append(data)
                 # print(f"Timestamp: {timestamp}, ASCCS Start Measurement Message received")
                 state = ParsingState.SEARCH_TLMS_MEASUREMENT_VALUES
 
@@ -86,12 +91,12 @@ def parse_log_file(log_file):
             key_match = pattern.search(log_line)
             if key_match:
                 timestamp = parse_timestamp(key_match.group(1))
-                if check_timestamp(parsed_data, timestamp):
-                    parsed_data[-1]['Measurement_ID'] = str(key_match.group(2)).strip()
-                else:
-                    data['Timestamp'] = timestamp
-                    data['Measurement_ID'] = str(key_match.group(2)).strip()
-                    parsed_data.append(data)
+                if check_timestamp(parsed_data, timestamp): # Check if there is already data with found timestamp
+                    parsed_data[-1]['Measurement_ID'] = str(key_match.group(2)).strip() # Add Measurement_ID to the last data row if there is already data with this timestamp
+                else: # There is no data with this timestamp
+                    data['Timestamp'] = timestamp # Store timestamp
+                    data['Measurement_ID'] = str(key_match.group(2)).strip() # Store Measurement_ID
+                    parsed_data.append(data) # Append data to the list
                 continue            
 
             # Search for the TLMS measurement job
