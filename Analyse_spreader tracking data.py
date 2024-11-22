@@ -97,7 +97,7 @@ def calculate_settling_time(df_current_analysis, df_log_data):
     else:
         settling_height = None
 
-    # Set settling heigh upper and lower limits
+    # Set settling height upper and lower limits
     if settling_height is not None:
         settling_height_upper_limit = settling_height + 50
         settling_height_lower_limit = settling_height - 50
