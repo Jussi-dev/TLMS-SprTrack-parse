@@ -11,10 +11,26 @@ import SprTrc_parser as stp # Import the parser module
 # Analyse spreader tracking data
 def main():
     # Ask for the root directory of the log files
-    log_root = filedialog.askdirectory()
+    # Ask if the user wants to define log files from an excel file
+    use_excel = input("Do you want to define log files from an excel file? (yes/no): ").strip().lower()
 
-    # Collect MeasureResult files under log root
-    log_files = collect_measure_result_files(log_root)
+    if use_excel == 'yes':
+        excel_file = filedialog.askopenfilename(filetypes=[("Excel files", "*.xlsx *.xls")])
+        if excel_file:
+            df_excel = pd.read_excel(excel_file)
+            log_files = df_excel['filename'].tolist()
+            log_root = os.path.dirname(excel_file)
+        else:
+            print("No excel file selected. Exiting.")
+            return
+    else:
+        log_root = filedialog.askdirectory()
+        if not log_root:
+            print("No directory selected. Exiting.")
+            return
+
+        # Collect MeasureResult files under log root
+        log_files = collect_measure_result_files(log_root)
     print("Found {} MeasureResult files.".format(len(log_files)))
 
     # define the analysed log dataframe
@@ -67,7 +83,7 @@ def main():
 
     # =================== Plots ===================
     # Plot 'SpTrMsg_position_Skew'
-    if False:
+    if True:
         plot_initial_ath_skew(df_processed_logs)
     # =============================================
 
@@ -118,12 +134,7 @@ def calculate_settling_time(df_current_analysis, df_log_data):
             df_spreader_validation_height_range = df_log_data[df_log_data['SpTrMsg_position_Z'] < 5800]
 
             # Plot the spreader Z position over time at the settling height range
-            df_spreader_validation_height_range.plot(x='Timestamp', y='SpTrMsg_position_Z', figsize=(12, 6), label='Validation Height Range')
-            df_settling_height_range.plot(x='Timestamp', y='SpTrMsg_position_Z', label='Settling Height Range', ax=plt.gca())
-            plt.title(f"Task: {df_current_analysis.iloc[0]['Task']}")
-            plt.xticks(rotation=45, ha='right')
-            plt.tight_layout()
-            plt.show()
+            render_settling_height_plot(df_current_analysis, df_settling_height_range, df_spreader_validation_height_range)
         else:
             settling_time = None
     else:
@@ -131,15 +142,23 @@ def calculate_settling_time(df_current_analysis, df_log_data):
     df_current_analysis.loc[0, 'SpTr_settling_time'] = settling_time
     return None
 
+def render_settling_height_plot(df_current_analysis, df_settling_height_range, df_spreader_validation_height_range):
+    df_spreader_validation_height_range.plot(x='Timestamp', y='SpTrMsg_position_Z', figsize=(12, 6), label='Validation Height Range')
+    df_settling_height_range.plot(x='Timestamp', y='SpTrMsg_position_Z', label='Settling Height Range', ax=plt.gca())
+    plt.title(f"Task: {df_current_analysis.iloc[0]['Task']}")
+    plt.xticks(rotation=45, ha='right')
+    plt.tight_layout()
+    plt.show()
+
 def extract_job_info(df_current_analysis, df_log_data):
-    df_current_analysis.loc[0, 'Lane'] = df_log_data.iloc[0]['Lane'].astype(int)
-    df_current_analysis.loc[0, 'Task'] = df_log_data.iloc[0]['Task']
-    df_current_analysis.loc[0, 'Position'] = df_log_data.iloc[0]['Position']
-    df_current_analysis.loc[0, 'Chassis_length'] = df_log_data.iloc[0]['Chassis_length']
-    df_current_analysis.loc[0, 'Chassis_type'] = df_log_data.iloc[0]['Chassis_type']
-    df_current_analysis.loc[0, 'Cont_Length'] = df_log_data.iloc[0]['Cont_Length'].astype(int)
-    df_current_analysis.loc[0, 'Cont_Width'] = df_log_data.iloc[0]['Cont_Width'].astype(int)
-    df_current_analysis.loc[0, 'Cont_Height'] = df_log_data.iloc[0]['Cont_Height'].astype(int)
+    df_current_analysis.loc[0, 'Lane'] = df_log_data.iloc[0]['Lane'] if pd.notnull(df_log_data.iloc[0]['Lane']) else None
+    df_current_analysis.loc[0, 'Task'] = df_log_data.iloc[0]['Task'] if pd.notnull(df_log_data.iloc[0]['Task']) else None
+    df_current_analysis.loc[0, 'Position'] = df_log_data.iloc[0]['Position'] if pd.notnull(df_log_data.iloc[0]['Position']) else None
+    df_current_analysis.loc[0, 'Chassis_length'] = df_log_data.iloc[0]['Chassis_length'] if pd.notnull(df_log_data.iloc[0]['Chassis_length']) else None
+    df_current_analysis.loc[0, 'Chassis_type'] = df_log_data.iloc[0]['Chassis_type'] if pd.notnull(df_log_data.iloc[0]['Chassis_type']) else None
+    df_current_analysis.loc[0, 'Cont_Length'] = df_log_data.iloc[0]['Cont_Length'].astype(int) if pd.notnull(df_log_data.iloc[0]['Cont_Length']) else None
+    df_current_analysis.loc[0, 'Cont_Width'] = df_log_data.iloc[0]['Cont_Width'].astype(int) if pd.notnull(df_log_data.iloc[0]['Cont_Width']) else None
+    df_current_analysis.loc[0, 'Cont_Height'] = df_log_data.iloc[0]['Cont_Height'].astype(int) if pd.notnull(df_log_data.iloc[0]['Cont_Height']) else None
 
 # Extract the first valid spreader tracking calculation values
 def extract_first_valid_spreader_data(df_current_analysis, df_log_data):
