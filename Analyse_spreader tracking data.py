@@ -65,7 +65,7 @@ def main():
         extract_first_valid_spreader_data(df_current_analysis, df_log_data)
 
         # Detremine the settling time before final landing
-        calculate_settling_time(df_current_analysis, df_log_data)
+        calculate_settling_range(df_current_analysis, df_log_data)
         # ====================================================
 
         # =================== Data aggregation ===================
@@ -89,7 +89,7 @@ def main():
 
     return None
 
-def calculate_settling_time(df_current_analysis, df_log_data):
+def calculate_settling_range(df_current_analysis, df_log_data):
     # Settling time is defined as the time spreader is at the settling height before final landing
 
     # Find first (if any) row with valid target measurement Z height
