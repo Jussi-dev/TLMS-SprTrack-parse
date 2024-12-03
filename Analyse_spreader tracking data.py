@@ -4,6 +4,7 @@ from matplotlib.ticker import ScalarFormatter
 import pandas as pd
 from tkinter import filedialog
 import os
+
 # Append path to the parser module
 sys.path.append('/C:/Users/henttju/Python scripts/TLMS log analysis/TLMS SprTrack parse')
 import SprTrc_parser as stp # Import the parser module
@@ -38,12 +39,15 @@ def main():
     df_processed_logs = pd.DataFrame()
 
     # Parse and analyse the MeasureResult files
+
+    print("\n") # Print a newline for better readability
     for log_file in log_files:
         # Initialize the analysis data structure
         df_current_analysis = initialize_analysis_data_structure()
 
         # Echo a progress counter of current file index / total file amount
-        print("Parsing and analysing file {} / {}...".format(log_files.index(log_file) + 1, len(log_files)))
+        print("\033[F", end="") # Move cursor up one line
+        print("Parsing and analysing file {} / {}...".format(log_files.index(log_file) + 1, len(log_files))) # Print the progress counter
 
         # =================== Data extraction ===================                                                                               
         # Extract log file name and enter it to the current analysis DataFrame
@@ -63,10 +67,11 @@ def main():
 
         # =================== Data analysis ===================
         # Find the first valid row of 'SpTrMsg_Skew'
-        extract_first_valid_spreader_data(df_current_analysis, df_log_data)
+        if False:
+            extract_first_valid_spreader_data(df_current_analysis, df_log_data)
 
         # Detremine the settling time before final landing
-        df_settling_height_range, settling_time = calculate_settling_range(df_log_data) # Calculate the settling time before final landing
+        df_settling_height_range, settling_time = calculate_settling_range(df_log_data, use_slope=False) # Calculate the settling time before final landing
         df_current_analysis.loc[0, 'SpTr_settling_time'] = settling_time # Enter the settling time to the DataFrame
 
         # Plot the spreader x, y and skew position over time at the settling height range
@@ -80,7 +85,6 @@ def main():
         # ====================================================
 
         # Move cursor up to print progress counter on the same line
-        print("\033[F", end="")
 
     # Save the analysed log data to an excel file
     output_file = os.path.join(os.getcwd(), "Spreader_tracking_analysis.xlsx")
@@ -89,55 +93,83 @@ def main():
 
     # =================== Plots ===================
     # Plot 'SpTrMsg_position_Skew'
-    if True:
+    if False:
         plot_initial_ath_skew(df_processed_logs)
     # =============================================
 
     return None
 
 def plot_settling_height_data(df_log_data, df_settling_height_range):
-    if df_settling_height_range is not None: # Check if the settling height range is not None
-        fig, axs = plt.subplots(3, 2, figsize=(18, 12))
+    fig, axs = plt.subplots(3, 2, figsize=(18, 12)) # Create a figure with 3 rows and 2 columns of subplots
+    # Plot spreader x position over time
+    df_log_data[(df_log_data['SpTrMsg_position_Z'] < 5500) & (df_log_data['SpTrMsg_position_Z'] > 4000)].plot(x='Timestamp', y=['Point_Center_X', 'SpTrRes_calc_X'], ax=axs[0, 0], title='Spreader X Position Over Time', color='blue')
 
-        # Plot spreader x position over time
-        df_settling_height_range.plot(x='Timestamp', y=['Point_Center_X', 'SpTrRes_calc_X'], ax=axs[0, 0], title='Spreader X Position Over Time')
-        axs[0, 0].set_xlabel('Timestamp')
-        axs[0, 0].set_ylabel('X Position')
-        axs[0, 0].yaxis.set_major_formatter(ScalarFormatter(useOffset=False)) # Disable scientific notation
-        axs[0, 0].ticklabel_format(useOffset=False, axis='y', style='plain')
+    # Plot spreader y position over time
+    df_log_data[(df_log_data['SpTrMsg_position_Z'] < 5500) & (df_log_data['SpTrMsg_position_Z'] > 4000)].plot(x='Timestamp', y=['Point_Center_Y', 'SpTrRes_calc_Y'], ax=axs[1, 0], title='Spreader Y Position Over Time', color='blue')
 
-        # Plot spreader y position over time
-        df_settling_height_range.plot(x='Timestamp', y=['Point_Center_Y', 'SpTrRes_calc_Y'], ax=axs[1, 0], title='Spreader Y Position Over Time')
-        axs[1, 0].set_xlabel('Timestamp')
-        axs[1, 0].set_ylabel('Y Position')
-        axs[1, 0].yaxis.set_major_formatter(ScalarFormatter(useOffset=False))
-        axs[1, 0].ticklabel_format(useOffset=False, axis='y', style='plain')
+    # Plot spreader skew position over time
+    df_log_data[(df_log_data['SpTrMsg_position_Z'] < 5500) & (df_log_data['SpTrMsg_position_Z'] > 4000)].plot(x='Timestamp', y=['Skew', 'SpTrRes_calc_Skew'], ax=axs[2, 0], title='Spreader Skew Position Over Time', color='blue')
 
-        # Plot spreader skew position over time
-        df_settling_height_range.plot(x='Timestamp', y=['Skew', 'SpTrRes_calc_Skew'], ax=axs[2, 0], title='Spreader Skew Position Over Time')
-        axs[2, 0].set_xlabel('Timestamp')
-        axs[2, 0].set_ylabel('Skew Position')
-        axs[2, 0].yaxis.set_major_formatter(ScalarFormatter(useOffset=False))
-        axs[2, 0].ticklabel_format(useOffset=False, axis='y', style='plain')
+    # Plot spreader Z position over time
+    df_z_range = filter_spreader_data_by_z(df_log_data)
+    if not df_z_range.empty:
+        df_z_range.plot(x='Timestamp', y='SpTrMsg_position_Z', ax=axs[0, 1], title='Spreader Z Position Over Time')
+    else:
+        print("No spreader data found in the Z range.\n")
 
-        # Plot spreader Z position over time
-        df_log_data[df_log_data['SpTrMsg_position_Z'] < 5800].plot(x='Timestamp', y='SpTrMsg_position_Z', ax=axs[0, 1], title='Spreader Z Position Over Time')
-        df_settling_height_range.plot(x='Timestamp', y='SpTrMsg_position_Z', ax=axs[0, 1], color='red', label='All Data')
-        axs[0, 1].set_xlabel('Timestamp')
-        axs[0, 1].set_ylabel('Z Position')
-        axs[0, 1].yaxis.set_major_formatter(ScalarFormatter(useOffset=False))
-        axs[0, 1].ticklabel_format(useOffset=False, axis='y', style='plain')
+    if df_settling_height_range is not None:
+        # Plot spreader x position over time at the settling height range
+        df_settling_height_range.plot(x='Timestamp', y=['Point_Center_X', 'SpTrRes_calc_X'], ax=axs[0, 0], title='Spreader tracking X @ settling height', color='red')
 
-        # Figure title based on the task, lane, and position
-        task, lane, position = extract_task_lane_position(df_settling_height_range)
-        fig.suptitle(f"Task: {task}, Lane: {lane}, Position: {position}")
+        # Plot spreader y position over time at the settling height range
+        df_settling_height_range.plot(x='Timestamp', y=['Point_Center_Y', 'SpTrRes_calc_Y'], ax=axs[1, 0], title='Spreader tracking Y @ settling height', color='red')
 
-        plt.tight_layout()
-        plt.show()
+        # Plot spreader skew position over time at the settling height range
+        df_settling_height_range.plot(x='Timestamp', y=['Skew', 'SpTrRes_calc_Skew'], ax=axs[2, 0], title='Spreader tracking skew @ settling height', color='red')
+
+        # Plot spreader Z position over time at the settling height range
+        df_settling_height_range.plot(x='Timestamp', y='SpTrMsg_position_Z', ax=axs[0, 1], title='Spreader Z Position @ settling height', color='red')
+
     else:
         print("No settling height range found.\n")
 
-def calculate_settling_range(df_log_data):
+    # Set common labels for the x and y axes for plot 1
+    axs[0, 0].set_xlabel('Timestamp')
+    axs[0, 0].set_ylabel('X Position')
+    axs[0, 0].yaxis.set_major_formatter(ScalarFormatter(useOffset=False)) # Disable scientific notation
+    axs[0, 0].ticklabel_format(useOffset=False, axis='y', style='plain')
+
+    # Set common labels for the x and y axes for plot 2
+    axs[1, 0].set_xlabel('Timestamp')
+    axs[1, 0].set_ylabel('Y Position')
+    axs[1, 0].yaxis.set_major_formatter(ScalarFormatter(useOffset=False)) # Disable scientific notation
+    axs[1, 0].ticklabel_format(useOffset=False, axis='y', style='plain')
+
+    # Set common labels for the x and y axes for plot 3
+    axs[2, 0].set_xlabel('Timestamp')
+    axs[2, 0].set_ylabel('Skew Position')
+    axs[2, 0].yaxis.set_major_formatter(ScalarFormatter(useOffset=False)) # Disable scientific notation
+    axs[2, 0].ticklabel_format(useOffset=False, axis='y', style='plain')
+
+    # Set common labels for the x and y axes for plot 4
+    axs[0, 1].set_xlabel('Timestamp')
+    axs[0, 1].set_ylabel('Z Position')
+    axs[0, 1].yaxis.set_major_formatter(ScalarFormatter(useOffset=False))
+    axs[0, 1].ticklabel_format(useOffset=False, axis='y', style='plain')
+
+
+    # Figure title based on the task, lane, and position
+    task, lane, position = extract_task_lane_position(df_settling_height_range)
+    fig.suptitle(f"Task: {task}, Lane: {lane}, Position: {position}")
+
+    plt.tight_layout()
+    plt.show()
+
+def filter_spreader_data_by_z(df_log_data):
+    return df_log_data[(df_log_data['SpTrMsg_position_Z'] < 5500) & (df_log_data['SpTrMsg_position_Z'] > 4000)]
+
+
+def calculate_settling_range(df_log_data, use_slope=False):
     # Settling time is defined as the time spreader is at the settling height before final landing
 
     # FInd the target Z height based on the task
@@ -164,7 +196,7 @@ def calculate_settling_range(df_log_data):
     # Set settling height upper and lower limits
     if settling_height is not None:
         settling_height_upper_limit = settling_height + 50
-        settling_height_lower_limit = settling_height - 50
+        settling_height_lower_limit = settling_height - 60
     else:
         settling_height_upper_limit = None
         settling_height_lower_limit = None
@@ -173,9 +205,7 @@ def calculate_settling_range(df_log_data):
     if settling_height_upper_limit is not None and settling_height_lower_limit is not None:
         df_settling_height_range = df_log_data[(df_log_data['SpTrMsg_position_Z'] >= settling_height_lower_limit) & (df_log_data['SpTrMsg_position_Z'] <= settling_height_upper_limit)]
         if not df_settling_height_range.empty:
-            settling_time_start = pd.to_datetime(df_settling_height_range.iloc[0]['Timestamp'], errors='coerce')
-            settling_time_end = pd.to_datetime(df_settling_height_range.iloc[-1]['Timestamp'], errors='coerce')
-            settling_time = settling_time_end - settling_time_start
+            settling_time = calculate_settling_time(df_settling_height_range)
 
             # Define a validation spreader height range
             # Spreader z height < 6500 mm
@@ -190,8 +220,34 @@ def calculate_settling_range(df_log_data):
         settling_time = None
         df_settling_height_range = None
 
+    if use_slope:
+        # Settling height is defined as the height in which the spreader height slope is (near) zero
+        # Find the first row where the spreader height slope is (near) zero for a certain time period
+
+       # Create the Z_diff column
+        df_settling_height_range_filtered = df_settling_height_range.copy()
+        df_settling_height_range_filtered['Z_diff'] = df_settling_height_range_filtered['SpTrMsg_position_Z'].diff().fillna(0)
+
+        # Apply a low pass filter to the Z_diff column
+        df_settling_height_range_filtered.loc[:, 'Z_diff_filtered'] = df_settling_height_range_filtered['Z_diff'].rolling(window=12, min_periods=1).mean()
+        
+        # Filter the DataFrame based on the Z_diff_filtered column
+        df_settling_height_range = df_settling_height_range_filtered[df_settling_height_range_filtered['Z_diff_filtered'].abs() < 0.5]
+        
+        if not df_settling_height_range.empty:
+            settling_time = calculate_settling_time(df_settling_height_range)
+        else:
+            settling_time = None
+            df_settling_height_range = None
+
     # df_current_analysis.loc[0, 'SpTr_settling_time'] = settling_time
     return df_settling_height_range, settling_time
+
+def calculate_settling_time(df_settling_height_range):
+    settling_time_start = pd.to_datetime(df_settling_height_range.iloc[0]['Timestamp'], errors='coerce')
+    settling_time_end = pd.to_datetime(df_settling_height_range.iloc[-1]['Timestamp'], errors='coerce')
+    settling_time = settling_time_end - settling_time_start
+    return settling_time
 
 def render_settling_height_plot(df_settling_height_range, df_spreader_validation_height_range):
     df_spreader_validation_height_range.plot(x='Timestamp', y='SpTrMsg_position_Z', figsize=(12, 6), label='Validation Height Range')
@@ -206,9 +262,12 @@ def render_settling_height_plot(df_settling_height_range, df_spreader_validation
     plt.show()
 
 def extract_task_lane_position(df_settling_height_range):
-    task = df_settling_height_range.iloc[0]['Task'].split('-')[-1].strip()
-    lane = df_settling_height_range.iloc[0]['Lane'].astype(int)
-    position = df_settling_height_range.iloc[0]['Position'].split('-')[-1].strip()
+    if df_settling_height_range is None:
+        task, lane, position = None, None, None
+    else:
+        task = df_settling_height_range.iloc[0]['Task'].split('-')[-1].strip()
+        lane = df_settling_height_range.iloc[0]['Lane'].astype(int)
+        position = df_settling_height_range.iloc[0]['Position'].split('-')[-1].strip()
     return task,lane,position
 
 def extract_job_info(df_current_analysis, df_log_data):
