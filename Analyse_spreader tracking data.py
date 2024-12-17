@@ -2,7 +2,9 @@ import sys
 import matplotlib.pyplot as plt
 from matplotlib.ticker import ScalarFormatter
 import pandas as pd
+import tkinter as tk
 from tkinter import filedialog
+from tkinter import messagebox
 import os
 
 # Append path to the parser module
@@ -14,9 +16,8 @@ import SprTrc_parser as stp # Import the parser module
 def main():
     # Ask for the root directory of the log files
     # Ask if the user wants to define log files from an excel file
-    use_excel = input("Do you want to define log files from an excel file? (yes/no): ").strip().lower()
 
-    if use_excel == 'yes':
+    if prompt_use_excel():
         excel_file = filedialog.askopenfilename(filetypes=[("Excel files", "*.xlsx *.xls")])
         if excel_file:
             df_excel = pd.read_excel(excel_file)
@@ -336,6 +337,12 @@ def collect_measure_result_files(log_root):
             if file.startswith("MeasureResult") and file.lower().endswith(".csv"):
                 measure_result_files.append(os.path.join(root, file))
     return measure_result_files
+
+def prompt_use_excel():
+    root = tk.Tk()
+    root.withdraw()  # Hide the root window
+    use_excel = messagebox.askyesno("Use Excel file", "Do you want to define log files from an Excel file?")
+    return use_excel   
 
 if __name__ == '__main__':
     main()
